@@ -124,7 +124,10 @@ public class AntForestV2 extends ModelTask {
         // AntForestTaskTypeSet.add("YAOYIYAO_0815");//去淘宝摇一摇领奖励
         // AntForestTaskTypeSet.add("GYG-TAOCAICAI");//逛一逛淘宝买菜
     }
-    
+
+    //TK-1.2.7蹲收代码增加
+    private final AtomicLong offsetTime = new AtomicLong(0);
+
     private final AtomicInteger taskCount = new AtomicInteger(0);
     
     private String selfId;
@@ -133,7 +136,7 @@ public class AntForestV2 extends ModelTask {
     
     private Integer retryIntervalInt;
     
-    private Integer advanceTimeInt;
+    //private Integer advanceTimeInt;
     
     private Integer checkIntervalInt;
     
@@ -141,7 +144,7 @@ public class AntForestV2 extends ModelTask {
     
     private FixedOrRangeIntervalLimit doubleCollectIntervalEntity;
     
-    private final AverageMath delayTimeMath = new AverageMath(5);
+    //private final AverageMath delayTimeMath = new AverageMath(5);
     
     private final ObjReference<Long> collectEnergyLockLimit = new ObjReference<>(0L);
     
@@ -380,7 +383,11 @@ public class AntForestV2 extends ModelTask {
             if (ecoLife.getValue()) {
                 ecoLife();
             }
-            
+//TK-1.2.7蹲收代码增加
+            if (!balanceNetworkDelay.getValue()) {
+                offsetTime.set(0);
+            }
+
             if (youthPrivilege.getValue()) {
                 Privilege.youthPrivilege();
                 //Privilege.studentSignInRedEnvelope();
@@ -867,12 +874,21 @@ public class AntForestV2 extends ModelTask {
     private JSONObject querySelfHome() {
         JSONObject userHomeObject = null;
         try {
-            long start = System.currentTimeMillis();
-            userHomeObject = new JSONObject(AntForestRpcCall.queryHomePage());
-            long end = System.currentTimeMillis();
-            long serverTime = userHomeObject.getLong("now");
-            int offsetTime = offsetTimeMath.nextInteger((int) ((start + end) / 2 - serverTime));
-            Log.i("服务器时间：" + serverTime + "，本地与服务器时间差：" + offsetTime);
+            if (balanceNetworkDelay.getValue()) {
+                long start = System.currentTimeMillis();
+                userHomeObject = new JSONObject(AntForestRpcCall.queryHomePage());
+                long end = System.currentTimeMillis();
+                long serverTime = userHomeObject.getLong("now");
+                offsetTime.set(Math.max((start + end) / 2 - serverTime, -3000));
+                Log.i("服务器时间：" + serverTime + "，本地与服务器时间差：" + offsetTime.get());
+                //TK-1.2.7老版
+
+//            long start = System.currentTimeMillis();
+//            userHomeObject = new JSONObject(AntForestRpcCall.queryHomePage());
+//            long end = System.currentTimeMillis();
+//            long serverTime = userHomeObject.getLong("now");
+//            int offsetTime = offsetTimeMath.nextInteger((int) ((start + end) / 2 - serverTime));
+//            Log.i("服务器时间：" + serverTime + "，本地与服务器时间差：" + offsetTime);
             //兼容组队模式
             if (isTeam(userHomeObject)) {
                 JSONObject teamHomeResult = userHomeObject.optJSONObject("teamHomeResult");
@@ -904,12 +920,24 @@ public class AntForestV2 extends ModelTask {
     private JSONObject queryFriendHome(String userId) {
         JSONObject userHomeObject = null;
         try {
-            long start = System.currentTimeMillis();
-            userHomeObject = new JSONObject(AntForestRpcCall.queryFriendHomePage(userId));
-            long end = System.currentTimeMillis();
-            long serverTime = userHomeObject.getLong("now");
-            int offsetTime = offsetTimeMath.nextInteger((int) ((start + end) / 2 - serverTime));
-            Log.i("服务器时间：" + serverTime + "，本地与服务器时间差：" + offsetTime);
+            if (balanceNetworkDelay.getValue()) {
+                long start = System.currentTimeMillis();
+                userHomeObject = new JSONObject(AntForestRpcCall.queryFriendHomePage(userId));
+                long end = System.currentTimeMillis();
+                long serverTime = userHomeObject.getLong("now");
+                offsetTime.set(Math.max((start + end) / 2 - serverTime, -3000));
+                Log.i("服务器时间：" + serverTime + "，本地与服务器时间差：" + offsetTime.get());
+            } else {
+                userHomeObject = new JSONObject(AntForestRpcCall.queryFriendHomePage(userId));
+            }
+//            TK-1.2.7老版
+
+//            long start = System.currentTimeMillis();
+//            userHomeObject = new JSONObject(AntForestRpcCall.queryFriendHomePage(userId));
+//            long end = System.currentTimeMillis();
+//            long serverTime = userHomeObject.getLong("now");
+//            int offsetTime = offsetTimeMath.nextInteger((int) ((start + end) / 2 - serverTime));
+//            Log.i("服务器时间：" + serverTime + "，本地与服务器时间差：" + offsetTime);
         }
         catch (Throwable t) {
             Log.printStackTrace(t);
@@ -1016,7 +1044,7 @@ public class AntForestV2 extends ModelTask {
                                                 if (hasChildTask(AntForestV2.getBubbleTimerTid(userId, bubbleId))) {
                                                     break;
                                                 }
-                                                addChildTask(new BubbleTimerTask(userId, bubbleId, produceTime, userName));
+                                                addChildTask(new BubbleTimerTask(userId, bubbleId, produceTime));//与TK-1.2.7提前蹲点一致
                                                 Log.record("[" + userName + "]能量保护罩时间[" + TimeUtil.getCommonDate(joProp.getLong("endTime")) + "]#未覆盖能量球成熟时间[" + TimeUtil.getCommonDate(produceTime) + "]");
                                                 Log.record("添加蹲点收取🪂[" + userName + "]在[" + TimeUtil.getCommonDate(produceTime) + "]执行");
                                             }
@@ -1092,7 +1120,7 @@ public class AntForestV2 extends ModelTask {
                                 if (hasChildTask(AntForestV2.getBubbleTimerTid(userId, bubbleId))) {
                                     break;
                                 }
-                                addChildTask(new BubbleTimerTask(userId, bubbleId, produceTime, userName));
+                                addChildTask(new BubbleTimerTask(userId, bubbleId, produceTime));//与TK-1.2.7一致
                                 Log.record("添加蹲点收取🪂[" + userName + "]在[" + TimeUtil.getCommonDate(produceTime) + "]执行");
                             }
                             else {
@@ -3990,7 +4018,8 @@ public class AntForestV2 extends ModelTask {
          */
         ROBBED
     }
-    
+
+    //TK-1.2.7老版蹲收提前逻辑
     /**
      * The type Bubble timer task.
      */
@@ -4015,36 +4044,64 @@ public class AntForestV2 extends ModelTask {
         /**
          * Instantiates a new Bubble timer task.
          */
-        BubbleTimerTask(String ui, long bi, long pt, String un) {
-            super(AntForestV2.getBubbleTimerTid(ui, bi), pt - advanceTimeInt);
+        BubbleTimerTask(String ui, long bi, long pt) {
+            super(AntForestV2.this, AntForestV2.getBubbleTimerTid(ui, bi), (int) (pt - 3000 - advanceTime.getValue()));
             userId = ui;
             bubbleId = bi;
             produceTime = pt;
-            userName = un;
         }
-        
+
+//        BubbleTimerTask(String ui, long bi, long pt, String un) {
+//            super(AntForestV2.getBubbleTimerTid(ui, bi), pt - advanceTimeInt);
+//            userId = ui;
+//            bubbleId = bi;
+//            produceTime = pt;
+//            userName = un;
+//        }
+
         @Override
         public Runnable setRunnable() {
             return () -> {
-                //String userName = UserIdMap.getMaskName(userId);
-                int averageInteger = offsetTimeMath.getAverageInteger();
-                long readyTime = produceTime - advanceTimeInt + averageInteger - delayTimeMath.getAverageInteger() - System.currentTimeMillis() + 70;
+                String userName = UserIdMap.getMaskName(userId);
+                long readyTime = produceTime + offsetTime.get() - System.currentTimeMillis() - advanceTime.getValue();
                 if (readyTime > 0) {
                     try {
                         Thread.sleep(readyTime);
-                    }
-                    catch (InterruptedException e) {
+                    } catch (InterruptedException e) {
                         Log.i("终止[" + userName + "]蹲点收取任务, 任务ID[" + getId() + "]");
                         return;
                     }
                 }
-                Log.record("执行蹲点收取[" + userName + "]" + "时差[" + averageInteger + "]ms" + "提前[" + advanceTimeInt + "]ms");
+                Log.record("执行[" + userName + "]蹲点收取任务");
+                //collectUserEnergy(userId, bubbleId, null, true);
                 collectEnergy(new CollectEnergyEntity(userId, null, AntForestRpcCall.getCollectEnergyRpcEntity(null, userId, bubbleId)), userName);
             };
         }
+//        @Override
+//        public Runnable setRunnable() {
+//            return () -> {
+//                //String userName = UserIdMap.getMaskName(userId);
+//                int averageInteger = offsetTimeMath.getAverageInteger();
+//                long readyTime = produceTime - advanceTimeInt + averageInteger - delayTimeMath.getAverageInteger() - System.currentTimeMillis() + 70;
+//                if (readyTime > 0) {
+//                    try {
+//                        Thread.sleep(readyTime);
+//                    }
+//                    catch (InterruptedException e) {
+//                        Log.i("终止[" + userName + "]蹲点收取任务, 任务ID[" + getId() + "]");
+//                        return;
+//                    }
+//                }
+//                Log.record("执行蹲点收取[" + userName + "]" + "时差[" + averageInteger + "]ms" + "提前[" + advanceTimeInt + "]ms");
+//                collectEnergy(new CollectEnergyEntity(userId, null, AntForestRpcCall.getCollectEnergyRpcEntity(null, userId, bubbleId)), userName);
+//            };
+//        }
     }
-    
-    public static String getBubbleTimerTid(String ui, long bi) {
+
+        public static String getBubbleTimerTid(String ui, long bi) {
+            return "DD|" + ui + "|" + bi;
+        }
+    //public static String getBubbleTimerTid(String ui, long bi) {
         return "BT|" + ui + "|" + bi;
     }
     
